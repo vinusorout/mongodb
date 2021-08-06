@@ -144,15 +144,15 @@ const BootcampSchema = new mongoose.Schema(
       type: Date,
       default: Date.now
     },
-    user: {
-      type: mongoose.Schema.ObjectId,
-      ref: 'User',
+    user: {   // in mongo db it will have the value of _id of User collection that is associated with this bootcamp
+      type: mongoose.Schema.ObjectId,   // It tells that is o type of a coleticon 
+      ref: 'User',  // and the collection is User
       required: true
     }
   },
   {
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true }
+    toJSON: { virtuals: true },   // for virtuals, reverse population
+    toObject: { virtuals: true }  // for virtuals, reverse population
   }
 );
 
@@ -185,6 +185,8 @@ BootcampSchema.pre('save', async function(next) {
 });
 
 // Cascade delete courses when a bootcamp is deleted
+// note findByIdandDelete will not trigger this
+// we will have to first get the bootcamp by id and then use , bootcampobject.remove();
 BootcampSchema.pre('remove', async function(next) {
   console.log(`Courses being removed from bootcamp ${this._id}`);
   await this.model('Course').deleteMany({ bootcamp: this._id });
@@ -192,21 +194,25 @@ BootcampSchema.pre('remove', async function(next) {
 });
 
 // Reverse populate with virtuals
-BootcampSchema.virtual('courses', {
-  ref: 'Course',
-  localField: '_id',
-  foreignField: 'bootcamp',
-  justOne: false
+// Virtuals are used for reverse populate
+// for example this bootcamp is associated in cources collections, so while getting cources we can get the bootcamp by populate
+// but to get all the cources associated with this bootcam, we use virtuals.
+BootcampSchema.virtual('courses', {   // cources will be added as property to end result
+  ref: 'Course',  // Collection name
+  localField: '_id',   // property of bootcamp collection y which we want to match the data with cources filed 'bootcamp'
+  foreignField: 'bootcamp',  // in cources bootcamp is a filed
+  justOne: false  // we want an array
 });
 
 module.exports = mongoose.model('Bootcamp', BootcampSchema);
 ```
 
-### Create the above model
+### CRUD the above model
 ```js
 const Bootcamp = require('../models/Bootcamp');
 
 // Create
+data = {...bootcampdata, user: userData(first fetched from User collections)};
 const bootcamp = await Bootcamp.create(data); // return the created object
 
 // GET
@@ -225,6 +231,58 @@ const bootupdated = await Bootcamp.findByIdAndUpdate(id, data, {
 
 // delete
 const bootdeleted = await Bootcamp.findByIdAndDelete(id);
+
+// get the data as per location latitude and longitude and radius
+const bootcamps = await Bootcamp.find({
+    // find by location, $geoWithin and  $centerSphere are specific to this data not a function/key in mongo
+    location: { $geoWithin: { $centerSphere: [[lng, lat], radius] } }
+});
+
+// Filtering, mongoose have some operators like $gt (greater than) $lte (less than equal), $gte, $in(for array) etc
+const bootcamps = await Bootcamp.find({
+    name: 'abc' // name should be equal to 'abc'
+    averageCost: {$lte: 1000} // avergae cost variable is less than 1000
+});
+
+// Select only Specific properties:
+const bootcamps = await Bootcamp.find({
+    name: 'abc' // name should be equal to 'abc'
+    averageCost: {$lte: 1000} // avergae cost variable is less than 1000
+}).select("name avaerageCost"); // will return name and averageCost only, it will also return _id
+
+// Sorting
+const bootcamps = await Bootcamp.find({
+    name: 'abc' // name should be equal to 'abc'
+    averageCost: {$lte: 1000} // avergae cost variable is less than 1000
+}).select("name avaerageCost") // will return name and averageCost only, it will also return _id
+.sort('name'); // assenfing for descending use '-name'
+
+// Pagination
+const total = await Bootcam.countDocuments(); // total no of documents
+const bootcamps = await Bootcamp.find({
+    name: 'abc' // name should be equal to 'abc'
+    averageCost: {$lte: 1000} // avergae cost variable is less than 1000
+}).select("name avaerageCost") // will return name and averageCost only, it will also return _id
+.sort('name') // assenfing for descending use '-name'
+.skip(skipcount)
+.limt(limitCount);
+
+// Populate, to actually get the linked collections JSON:
+const bootcamps = await Bootcamp.find({
+    name: 'abc' // name should be equal to 'abc'
+    averageCost: {$lte: 1000} // avergae cost variable is less than 1000
+}).select("name avaerageCost") // will return name and averageCost only, it will also return _id
+.populate('user'); // now User will be a JSON data instead of just ID value
+// if we want only some specifc value of User
+.populate({
+  path: 'user',
+  select: 'name age'
+})
+
+// to populate the virtual filed 'cources', same like above
+.populate('cources');
+
+
 
 ```
 
