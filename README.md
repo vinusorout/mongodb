@@ -286,6 +286,38 @@ const bootcamps = await Bootcamp.find({
 
 ```
 
+### Static on Schema
+We can define static methods on schema/colletion itself, then we can call this static method in mongo pre/post middlewares.
+```js
+// static method to get average of course tutitons
+CourseSchema.statics.getAverageCost = async function(bootcampId) {
+  // now we will call the aggregate method, this takes some parametes called PIPELINES
+  const obj = await this.aggregate([
+  { // step one match condition
+    $match: {bootcamp: bootcampId}  // this will match all the cources whose bootcamp id is equal to bootcampId
+  },
+  { // step 2 group data
+    $group: {
+      _id: '$bootcamp',  // add $ sign to the field
+      avarageCost: { $avg: '$filedFromWhichWeNeedAverage'}
+    }
+  }
+  // after this is done we will get object if type {_id: '', averageCost: 0}
+  ]);
+  
+  // now update the bootcamp model, with the average
+  await this.model('Bootcamp').findByIdAndUpdate(bootcampId, {
+    averageCost: obj[0].averageCost;
+  });
+}
+
+// now call this static method in the middleware:
+CourseSchema.post('save', function () {
+  this.constructor.getAverageCost(this.bootcamp); // this will have the cource object field so ootcamp field will be returned
+});
+```
+
+
 ### Mongoose Bad error, expresserrorHandler:
 ```js
 const ErrorResponse = require('../utils/errorResponse');
