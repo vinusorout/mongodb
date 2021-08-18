@@ -360,7 +360,30 @@ module.exports = errorHandler;
 
 
 
+## Importants
 
+### Ordered Inserts:
+MongoDB perform the insert operations in an ordered way, in insert many, it will write the first element first then second and so on... If lets say after first insert, for second item it failed due to some reason(may be duplicate _id value) then it will not insert further more records. and also will not rollback the first one.
+To ovwerride this behaviour we can pass some options in insertMany menthod
+
+```js
+insertMany([.....], {
+ordered: false   // Default is true, now it will give all the erorrs for each document, will insert all those which doesnt have any error
+});
+```
+
+### Write Concern
+
+```js
+// can be used with any insert method
+insertOne({...data}, {
+  writeConcern: {
+    w: 0   // 0 means you dont need any confirmation whether it is saved or failed, fast, no _id return
+    // 1 is default, and will wait for write complete
+    wtimeout: 200 // time to wait for write operation
+  }
+});
+```
 
 
 
