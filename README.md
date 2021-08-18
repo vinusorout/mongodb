@@ -362,6 +362,8 @@ module.exports = errorHandler;
 
 ## Importants
 
+### MongoDb is case sensitive
+
 ### Ordered Inserts:
 MongoDB perform the insert operations in an ordered way, in insert many, it will write the first element first then second and so on... If lets say after first insert, for second item it failed due to some reason(may be duplicate _id value) then it will not insert further more records. and also will not rollback the first one.
 To ovwerride this behaviour we can pass some options in insertMany menthod
@@ -385,10 +387,92 @@ insertOne({...data}, {
 });
 ```
 
+### Comparisons Operators:
+
+* db.movies.find({age: {$eq: 60}})
+* NOT Equal -> db.movies.find({age: {$ne: 60}})
+* less than $lt
+* greater than $gt
+* less than or equal $lte
+* greater or equal $gte
+* in operator #in db.movies.find({age: {$in: [60, 70]}})
+* not in $nin 
+
+### Logical Operators:
+
+* $and
+* $not
+* $nor  negative of OR condition
+* $or  db.movies.find({$or: [{age: $lt: 5}, {age: $gt: 9}, {age: $eq: 7}]})
+
+### Element Operators:
+
+* $exists if that field exists db.movies.find({age: {$exists: false}})
+* db.movies.find({age: {$exists: true, $gt: 30}}) // age exists and greater than 30
+* db.movies.find({age: {$exists: true, $ne: null}}) // age exists and not equal to null
+* $type db.movies.find({age: {$type: "string"}}) // get only sring age values
+
+### Evaluation Operators:
+
+* $regex  db.movies.find({sumarry: {$regex: /musicall/ }}) // look for this word in all summary
+* $expr   // is used when we need any expression operations within the single document
+* // for ex select all movies whose age is greater than cost
+* db.movies.find({$exprs: {$gt: ["$age", "$cost"] }})
+
+```js
+db.movies.find({$exprs: {$gt: [
+  {
+    $cond: {
+      if: {
+        $gte: ["$cost", 190]
+      },
+      then: {
+        $subtract: ["$cost", 10]
+      },
+      else: "$cost"
+    }
+  },
+  
+  "$age"
+] }})
+
+```
+
+### Array Operators
+
+* db.users.find({hobbies: {$size: 3}})
+* **$all** // use all when the order of element in the array doesnt match, for example genre: ["action", "thriller"] will be same with $all to genre ["thriller", "action"]
+* db.movies.find({genre: {$all: ["action", "thriller"]}}) // will give all without considering the order
+* db.movies.find({genre: ["action", "thriller"]}) // will not give all
+* **$elemMatch**  // when you need to specify condition in same element of the array
+* db.users.find({hobbies: {$elemMatch: {title: "Sports", frequency: {$gte: 3} }}})  // if hobby is sport and its frequency is greater or equal to 3 
+
+### Increment and Decrement in update method:
+
+```js
+db.users.updateOne({_id: "abc"}, {$inc: {age: 2}}) // increment age bby 2
+db.users.updateOne({_id: "abc"}, {$inc: {age: 12}}) // decrement age by 2
+```
+
+### Get rid of fields
+
+```js
+db.users.updateOne({_id: "abc"}, {$unset: {age: ""}}) // will delete  age field
+```
+
+### Renaming fileds:
+
+```js
+db.users.updateOne({_id: "abc"}, {$rename: {age: "totalAge"}}) // age will changed to totalAge 
+```
+
+### upsert, if document doesnt exists insert new one
+```js
+db.users.updateOne({condition}, {updates}, {upsert: true})
+```
 
 
-
-
+## Indexes
 
 
 
