@@ -522,10 +522,61 @@ db.contacts.createIndex({"createdAt": 1}, {expireAfterSeconds: 50});
 // Now if you add new documents to collections they will be deleted after 50 seconds
 ```
 
+### Text Indexes, only one text index in collection, should be created with multiple keys
+> Case doesnt matter after text index, indexes save and match in all lowercases
+
+```js
+db.products.createIndex({descField: 'text'}) // if in place of text we use 1, -1 then it will create the index on full value and sort it in assending and descending manner
+// but with 'text', it will create index for each keyword(except words like is, at etc) in the descField text.
+
+// now to search from the text index:
+db.products.find({$text: {$search: "awesome"}}) // will search in all the filed that were included in the text index.
+
+// search with awesome keyword but shoud not have great keyword, add minus to exlude an word
+db.products.find({$text: {$search: "awesome -great"}})
+
+
+// multiple key text indexes:
+db.products.createIndex({descField: 'text', filed2: 'text'});
+
+```
 
 ## Aggregation Framework:
+> Building a pipeline of steps, and get the desired data and transormed
+> each step executed in ordered manner
 
-
+```js
+db.persons.aggregate([
+  // first step match the data
+  { $match: {gender: "female"} },
+  
+  // group the data
+  {$group: {
+    // group by criteria
+    _id: { state: "$location.state" } // group by location.state
+    // aggregate function for the group
+    totalPersons: { $sum: 1 }  // in final result we will get a new filed totalPerson, with count as per group
+  } },  // we will get _id and totalPersons in final results
+  
+  // sort stage
+  { $sort: { totalPersons: -1 }},
+  
+  // projection
+  { $project: {_id: 1, totalPersons: 1, modefiedTotalPerson: { $concat: ['$_id', '$totalPersons', 'plain text'] }}}
+  
+  // more complex projection
+  { $project: {_id: 1, totalPersons: 1, modefiedTotalPerson: { $concat: [{$toUpper:'$_id'}, '$totalPersons', 'plain text'] }}}
+  
+  // more complex projection, set upper case for only first char
+  { $project: {_id: 1, totalPersons: 1, modefiedTotalPerson: { $concat: [{
+  $toUpper: { $substrCP: ['$_id', 0, 1]} // start from 0 and only 1 char
+  },
+  {
+  $substrCP: ['$_id', 1, {$subtract: [{$strLenCP: "_id"}, 1]}] // start from 1 and upto lebgth
+  }
+  , '$totalPersons', 'plain text'] }}}
+])
+```
 
 
 
