@@ -156,6 +156,9 @@ const BootcampSchema = new mongoose.Schema(
   }
 );
 
+// indexes
+BootcampSchema.index({"createdAt": 1}, {unique: true}) // indexes
+
 // Mongoose MIDLEWAREs ALSO Know as HOOKs
 // We can have pre(before operation) and post(after operation) HOOKS
 
