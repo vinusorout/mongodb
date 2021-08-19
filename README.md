@@ -574,9 +574,164 @@ db.persons.aggregate([
   {
   $substrCP: ['$_id', 1, {$subtract: [{$strLenCP: "_id"}, 1]}] // start from 1 and upto lebgth
   }
-  , '$totalPersons', 'plain text'] }}}
+  , '$totalPersons', 'plain text'] }}},
+  
+  
+  // projection of inner level data
+  // let say we have location data like 
+  // { ..., location: { {cordinates: {corda: "1", cordb: "2"}} }, ... }
+  // no we want to return these cordinates as location: [1, 2]
+  
+  { $project: {_id: 0, name: 1, email: 1,
+  location: { name: "LocationName", cordinates:[{$convert: { input: "$location.cordinates.corda", to: "int"}, onError: 0, onNull: 0 }, "$location.cordinates.cordb"]}
+  },
+  
+  // skip the data
+  {
+  $skip: 20
+  }
+  
+  // limit the data
+  {
+  $limit: 20
+  }
+  
 ])
 ```
+
+### Pushing elements into newly created array:
+
+```js
+We have data like:
+
+[
+  {
+    "name": "Max",
+    "hobbies": ["Sports", "Cooking"],
+    "age": 29,
+    "examScores": [
+      { "difficulty": 4, "score": 57.9 },
+      { "difficulty": 6, "score": 62.1 },
+      { "difficulty": 3, "score": 88.5 }
+    ]
+  },
+  {
+    "name": "Manu",
+    "hobbies": ["Eating", "Data Analytics"],
+    "age": 30,
+    "examScores": [
+      { "difficulty": 7, "score": 52.1 },
+      { "difficulty": 2, "score": 74.3 },
+      { "difficulty": 5, "score": 53.1 }
+    ]
+  },
+  {
+    "name": "Maria",
+    "hobbies": ["Cooking", "Skiing"],
+    "age": 29,
+    "examScores": [
+      { "difficulty": 3, "score": 75.1 },
+      { "difficulty": 8, "score": 44.2 },
+      { "difficulty": 6, "score": 61.5 }
+    ]
+  }
+]
+
+
+db.persons.aggregate(
+[
+  {$group: {_id: {age: "$age"}, allHobbies: {$push: "$hobbies"}}}
+]
+);
+
+this will return:
+{
+  _id: { 
+    age: 29
+  },
+  allHobbies: [  // because we pushed the complete array
+    [
+      "Sports",
+      "Cooking"
+    ],
+    [
+      "Cooking",
+      "Skiing"
+    ]
+  ]
+},
+...
+
+// push values not whole array Using UNWIND, it flatten the array by repeating the data, like join
+
+db.persons.aggregate(
+[
+  { $unwind: "$hobbies" },
+  { $group: {_id: {age: "$age"}, allHobbies: {$push: "$hobbies"}}} // now after the unwind the hobbies is a text not array
+  // instead of $PUSH if we use $addToSet it will remove the duplicate entries
+]
+);
+
+// Output
+{
+  _id: { 
+    age: 29
+  },
+  allHobbies: [  
+      "Sports",
+      "Cooking",
+      "Cooking",
+      "Skiing"
+  ]
+},
+...
+
+// $SLICE operator:
+
+db.persons.aggregate(
+[
+  {$project: {_id: 0, examScore: {$slice: ["$examScores", 1]}, numScores: {$size: "$examScores"} }}  // first element from the array, for last 2 use -2
+]
+);
+
+// output:
+{ examScores: [{dificulty: 4, "score": 57.9}], numScores: 3}
+{ examScores: [{dificulty: 7, "score": 52.1}], numScores: 3}
+{ examScores: [{dificulty: 3, "score": 75.1}], numScores: 3}
+
+
+// $FILTER
+db.friends.aggregate([
+    {
+      $project: {
+        _id: 0,
+        scores: { $filter: { input: '$examScores', as: 'sc', cond: { $gt: ["$$sc.score", 60] } } } // will run on all the elements of array examScores
+      }
+    }
+  ])
+
+// OUTPUT:
+{
+scores: [
+  { "difficulty": 6, "score": 62.1 },
+      { "difficulty": 3, "score": 88.5 }
+]
+}
+...
+
+// GET only the highest score per persion:
+db.friends.aggregate([
+    { $unwind: "$examScores" },
+    { $project: { _id: 1, name: 1, age: 1, score: "$examScores.score" } },
+    { $sort: { score: -1 } },
+    { $group: { _id: "$_id", name: { $first: "$name" }, maxScore: { $max: "$score" } } },
+    { $sort: { maxScore: -1 } }
+  ])
+  
+  
+
+```
+
 
 
 
