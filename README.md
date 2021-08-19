@@ -474,6 +474,53 @@ db.users.updateOne({condition}, {updates}, {upsert: true})
 
 ## Indexes
 
+### If no index is created then mongodb perform collection scan
+### Default index is on _id
+### explain method give detials like execution time etc
+### Single field index:
+
+```js
+db.contacts.createIndex({"filed": 1}, {unique: true}) // 1 assending -1 descending
+// unique for enforcing unique value in the column
+
+db.contacts.dropIndex({"filed": 1})
+```
+
+### Compound Index:
+
+```js
+db.contacts.createIndex({"filed1": 1, "field2": 1});
+```
+
+Compound Index, also work for single and partial column selects, so if i do a find on "field1", then too it will use the same compound index
+Let's say compound index is formed with three, filed1, field3 and field 2, then if we do find on "find1" and "find3", this same compound index will be used by mongo
+
+### Indexes are also used by sort({gender: 1})
+
+### Partial Index
+
+```js
+db.contacts.createIndex({"filed": 1}, {partialFilterExpression: {"age": {$gt: 60}}}); // index for age only with age greater than 60
+```
+
+> Partial Index use case: When you have a filed which is optional but unique, now if you have multiple docs with field as null(as filed is optional) create index wont work and will throw error duplicate key error.
+> For this situation we can user partial index, by excluding the optional documents
+
+```js
+db.contacts.createIndex({"email": 1}, {unique: true, partialFilterExpression: {"email": {$exists: true}}});
+```
+
+### TTL(Time to live) Index, used for documents that lives only for a limitted period of time, only on a date filed, and only on single field
+
+Use case Session, Cache etc
+
+```js
+db.contacts.createIndex({"createdAt": 1}, {expireAfterSeconds: 50});
+// Now if you add new documents to collections they will be deleted after 50 seconds
+```
+
+
+## Aggregation Framework:
 
 
 
